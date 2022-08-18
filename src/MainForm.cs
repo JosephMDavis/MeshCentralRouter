@@ -37,6 +37,7 @@ namespace MeshCentralRouter
     {
         private int initialHeight;
         private int argflags;
+        private Properties.Settings appSettings = Properties.Settings.Default;
         public int currentPanel = 0;
         public DateTime refreshTime = DateTime.Now;
         public MeshCentralServer meshcentral = null;
@@ -235,29 +236,42 @@ namespace MeshCentralRouter
             argflags = 0;
             string update = null;
             string delete = null;
-            foreach (string arg in this.args)
+
+            
+
+            installButton.Visible = appSettings.ShowInstallButton;
+
+            collapseDeviceGroup = Settings.GetRegValue("CollapseDeviceGroups", appSettings.CollapseDeviceGroups);
+
+            bool showLicense = appSettings.ShowLicense;
+
+            if (appSettings.AllowCommandArgs)
             {
-                if (arg.ToLower() == "-oldstyle") { deviceListViewMode = false; }
-                if (arg.ToLower() == "-install") { hookRouter(); forceExit = true; return; }
-                if (arg.ToLower() == "-uninstall") { unHookRouter(); forceExit = true; return; }
-                if (arg.ToLower() == "-noupdate") { allowUpdates = false; return; }
-                if (arg.ToLower() == "-debug") { debug = true; }
-                if (arg.ToLower() == "-tlsdump") { tlsdump = true; }
-                if (arg.ToLower() == "-ignorecert") { ignoreCert = true; }
-                if (arg.ToLower() == "-all") { inaddrany = true; }
-                if (arg.ToLower() == "-inaddrany") { inaddrany = true; }
-                if (arg.ToLower() == "-tray") { notifyIcon.Visible = true; }
-                if (arg.ToLower() == "-native") { webSocketClient.nativeWebSocketFirst = true; }
-                if (arg.Length > 6 && arg.Substring(0, 6).ToLower() == "-host:") { serverNameComboBox.Text = arg.Substring(6); argflags |= 1; }
-                if (arg.Length > 6 && arg.Substring(0, 6).ToLower() == "-user:") { userNameTextBox.Text = arg.Substring(6); argflags |= 2; }
-                if (arg.Length > 6 && arg.Substring(0, 6).ToLower() == "-pass:") { passwordTextBox.Text = arg.Substring(6); argflags |= 4; }
-                if (arg.Length > 8 && arg.Substring(0, 8).ToLower() == "-search:") { searchTextBox.Text = arg.Substring(8); }
-                if (arg.Length > 8 && arg.Substring(0, 8).ToLower() == "-update:") { update = arg.Substring(8); }
-                if (arg.Length > 8 && arg.Substring(0, 8).ToLower() == "-delete:") { delete = arg.Substring(8); }
-                if (arg.Length > 11 && arg.Substring(0, 11).ToLower() == "mcrouter://") { authLoginUrl = new Uri(arg); }
-                if ((arg.Length > 1) && (arg[0] != '-') && (arg.ToLower().EndsWith(".mcrouter"))) { try { argflags |= loadMappingFile(File.ReadAllText(arg), 1); } catch (Exception) { } }
-                if (arg.ToLower() == "-localfiles") { FileViewer fileViewer = new FileViewer(meshcentral, null); fileViewer.Show(); }
+                foreach (string arg in this.args)
+                {
+                    if (arg.ToLower() == "-oldstyle") { deviceListViewMode = false; }
+                    if (arg.ToLower() == "-install") { hookRouter(); forceExit = true; return; }
+                    if (arg.ToLower() == "-uninstall") { unHookRouter(); forceExit = true; return; }
+                    if (arg.ToLower() == "-noupdate") { allowUpdates = false; return; }
+                    if (arg.ToLower() == "-debug") { debug = true; }
+                    if (arg.ToLower() == "-tlsdump") { tlsdump = true; }
+                    if (arg.ToLower() == "-ignorecert") { ignoreCert = true; }
+                    if (arg.ToLower() == "-all") { inaddrany = true; }
+                    if (arg.ToLower() == "-inaddrany") { inaddrany = true; }
+                    if (arg.ToLower() == "-tray") { notifyIcon.Visible = true; }
+                    if (arg.ToLower() == "-native") { webSocketClient.nativeWebSocketFirst = true; }
+                    if (arg.Length > 6 && arg.Substring(0, 6).ToLower() == "-host:") { serverNameComboBox.Text = arg.Substring(6); argflags |= 1; }
+                    if (arg.Length > 6 && arg.Substring(0, 6).ToLower() == "-user:") { userNameTextBox.Text = arg.Substring(6); argflags |= 2; }
+                    if (arg.Length > 6 && arg.Substring(0, 6).ToLower() == "-pass:") { passwordTextBox.Text = arg.Substring(6); argflags |= 4; }
+                    if (arg.Length > 8 && arg.Substring(0, 8).ToLower() == "-search:") { searchTextBox.Text = arg.Substring(8); }
+                    if (arg.Length > 8 && arg.Substring(0, 8).ToLower() == "-update:") { update = arg.Substring(8); }
+                    if (arg.Length > 8 && arg.Substring(0, 8).ToLower() == "-delete:") { delete = arg.Substring(8); }
+                    if (arg.Length > 11 && arg.Substring(0, 11).ToLower() == "mcrouter://") { authLoginUrl = new Uri(arg); }
+                    if ((arg.Length > 1) && (arg[0] != '-') && (arg.ToLower().EndsWith(".mcrouter"))) { try { argflags |= loadMappingFile(File.ReadAllText(arg), 1); } catch (Exception) { } }
+                    if (arg.ToLower() == "-localfiles") { FileViewer fileViewer = new FileViewer(meshcentral, null); fileViewer.Show(); }
+                }
             }
+
             autoLogin = (argflags == 7);
             this.MinimizeBox = !notifyIcon.Visible;
             this.MinimumSize = new Size(this.Width, initialHeight);
@@ -340,30 +354,32 @@ namespace MeshCentralRouter
             }
 
             // Check MeshCentral .mcrouter hook
-            installButton.Visible = !isRouterHooked();
+            installButton.Visible = appSettings.ShowInstallButton && !isRouterHooked();
 
             // Right click action
-            deviceDoubleClickAction = int.Parse(Settings.GetRegValue("DevDoubleClickClickAction", "0"));
+            deviceDoubleClickAction = int.Parse(Settings.GetRegValue("DevDoubleClickClickAction", appSettings.DeviceDoubleClickAction));
             setDoubleClickDeviceAction();
 
             // Load customizations
-            bool showLicense = true;
-            FileInfo selfExe = new FileInfo(Assembly.GetExecutingAssembly().Location);
-            if (File.Exists(Path.Combine(selfExe.Directory.FullName, @"customization\topbanner.png"))) { try { pictureBox1.Image = (Bitmap)Image.FromFile(Path.Combine(selfExe.Directory.FullName, @"customization\topbanner.png")); showLicense = false; } catch (Exception) { } }
-            if (File.Exists(Path.Combine(selfExe.Directory.FullName, @"customization\logo.png"))) { try { pictureBox2.Image = pictureBox6.Image = (Bitmap)Image.FromFile(Path.Combine(selfExe.Directory.FullName, @"customization\logo.png")); showLicense = false; } catch (Exception) { } }
-            if (File.Exists(Path.Combine(selfExe.Directory.FullName, @"customization\bottombanner.png"))) { try { pictureBox3.Image = pictureBox4.Image = pictureBox5.Image = pictureBox7.Image = (Bitmap)Image.FromFile(Path.Combine(selfExe.Directory.FullName, @"customization\bottombanner.png")); showLicense = false; } catch (Exception) { } }
-            licenseLinkLabel.Visible = showLicense;
-            connectionSettings.Visible = true;
-            try
+            if (appSettings.AllowCustomizations)
             {
-                if (File.Exists(Path.Combine(selfExe.Directory.FullName, @"customization\customize.txt")))
+                FileInfo selfExe = new FileInfo(Assembly.GetExecutingAssembly().Location);
+                if (File.Exists(Path.Combine(selfExe.Directory.FullName, @"customization\topbanner.png"))) { try { pictureBox1.Image = (Bitmap)Image.FromFile(Path.Combine(selfExe.Directory.FullName, @"customization\topbanner.png")); showLicense = false; } catch (Exception) { } }
+                if (File.Exists(Path.Combine(selfExe.Directory.FullName, @"customization\logo.png"))) { try { pictureBox2.Image = pictureBox6.Image = (Bitmap)Image.FromFile(Path.Combine(selfExe.Directory.FullName, @"customization\logo.png")); showLicense = false; } catch (Exception) { } }
+                if (File.Exists(Path.Combine(selfExe.Directory.FullName, @"customization\bottombanner.png"))) { try { pictureBox3.Image = pictureBox4.Image = pictureBox5.Image = pictureBox7.Image = (Bitmap)Image.FromFile(Path.Combine(selfExe.Directory.FullName, @"customization\bottombanner.png")); showLicense = false; } catch (Exception) { } }
+                licenseLinkLabel.Visible = showLicense;
+                connectionSettings.Visible = true;
+                try
                 {
-                    string[] lines = File.ReadAllLines(Path.Combine(selfExe.Directory.FullName, @"customization\customize.txt"));
-                    if (lines[0] != "") { this.Text = lines[0]; }
-                    if (lines[1] != "") { label1.Text = lines[1]; }
+                    if (File.Exists(Path.Combine(selfExe.Directory.FullName, @"customization\customize.txt")))
+                    {
+                        string[] lines = File.ReadAllLines(Path.Combine(selfExe.Directory.FullName, @"customization\customize.txt"));
+                        if (lines[0] != "") { this.Text = lines[0]; }
+                        if (lines[1] != "") { label1.Text = lines[1]; }
+                    }
                 }
+                catch (Exception) { }
             }
-            catch (Exception) { }
 
             // Check if Windows SSH is present
             FileInfo nativeSshPath = new FileInfo(Path.Combine(Environment.SystemDirectory, "OpenSSH\\ssh.exe"));
@@ -710,7 +726,7 @@ namespace MeshCentralRouter
         private void Meshcentral_onLoginTokenChanged()
         {
             if (this.InvokeRequired) { this.Invoke(new MeshCentralServer.onLoginTokenChangedHandler(Meshcentral_onLoginTokenChanged)); return; }
-            openWebSiteButton.Visible = true;
+            openWebSiteButton.Visible = appSettings.ShowWebsiteButton;
         }
 
         private void Meshcentral_onNodesChanged(bool fullRefresh)
@@ -812,6 +828,7 @@ namespace MeshCentralRouter
                             grp.Tag = node.meshid;
                             node.listitem.Group = grp;
                             bGroupChanged = true;
+                            grp.HeaderAlignment = appSettings.GroupHeaderAlignment;
                         }
 
                         bool connVisible = ((showOfflineDevicesToolStripMenuItem.Checked) || ((node.conn & 1) != 0)) || (node.mtype == 3);
